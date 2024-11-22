@@ -6,6 +6,7 @@ from fe.access import book
 from fe.access.new_seller import register_new_seller
 from fe.access.new_buyer import register_new_buyer
 from fe.access.buyer import Buyer
+from fe.access.seller import ship_order
 from fe import conf
 
 
@@ -29,6 +30,23 @@ class Payment:
         code = self.buyer.payment(self.order_id)
         return code == 200
 
+class ShipOrder:
+    def __init__(self, store_id, order_id):
+        self.store_id = store_id
+        self.order_id = order_id
+
+    def run(self):
+        code = ship_order(self.store_id, self.order_id)
+        return code == 200
+    
+class ReceiveOrder:
+    def __init__(self, buyer: Buyer, order_id):
+        self.buyer = buyer
+        self.order_id = order_id
+
+    def run(self):
+        code = self.buyer.receive_order(order_id=self.order_id)
+        return code == 200
 
 class Workload:
     def __init__(self):
@@ -53,16 +71,29 @@ class Workload:
 
         self.n_new_order = 0
         self.n_payment = 0
+        self.n_shipment = 0
+        self.n_receive = 0
         self.n_new_order_ok = 0
         self.n_payment_ok = 0
+        self.n_shipment_ok = 0
+        self.n_receive_ok = 0
+
         self.time_new_order = 0
         self.time_payment = 0
+        self.time_shipment = 0
+        self.time_receive = 0
+
         self.lock = threading.Lock()
         # 存储上一次的值，用于两次做差
         self.n_new_order_past = 0
         self.n_payment_past = 0
+        self.n_shipment_past = 0    
+        self.n_receive_past = 0
+
         self.n_new_order_ok_past = 0
         self.n_payment_ok_past = 0
+        self.n_shipment_ok_past = 0
+        self.n_receive_ok_past = 0
 
     def to_seller_id_and_password(self, no: int) -> (str, str):
         return "seller_{}_{}".format(no, self.uuid), "password_seller_{}_{}".format(
@@ -132,10 +163,16 @@ class Workload:
         self,
         n_new_order,
         n_payment,
+        n_shipment,
+        n_receive,
         n_new_order_ok,
         n_payment_ok,
+        n_shipment_ok,
+        n_receive_ok,
         time_new_order,
         time_payment,
+        time_shipment,
+        time_receive,
     ):
         # 获取当前并发数
         thread_num = len(threading.enumerate())
@@ -143,14 +180,22 @@ class Workload:
         self.lock.acquire()
         self.n_new_order = self.n_new_order + n_new_order
         self.n_payment = self.n_payment + n_payment
+        self.n_shipment = self.n_shipment + n_shipment
+        self.n_receive = self.n_receive + n_receive
         self.n_new_order_ok = self.n_new_order_ok + n_new_order_ok
         self.n_payment_ok = self.n_payment_ok + n_payment_ok
+        self.n_shipment_ok = self.n_shipment_ok + n_shipment_ok
+        self.n_receive_ok = self.n_receive_ok + n_receive_ok
         self.time_new_order = self.time_new_order + time_new_order
         self.time_payment = self.time_payment + time_payment
+        self.time_shipment = self.time_shipment + time_shipment
+        self.time_receive = self.time_receive + time_receive
         # 计算这段时间内新创建订单的总数目
         n_new_order_diff = self.n_new_order - self.n_new_order_past
         # 计算这段时间内新付款订单的总数目
         n_payment_diff = self.n_payment - self.n_payment_past
+        n_shipment_diff = self.n_shipment - self.n_shipment_past
+        n_receive_diff = self.n_receive - self.n_receive_past
 
         if (
             self.n_payment != 0
@@ -178,12 +223,19 @@ class Workload:
                     self.n_new_order_ok,
                     n_new_order_diff,
                     self.n_new_order,
-                    self.time_new_order
-                    / self.n_new_order,  # 订单延迟:(创建订单所用时间/并发数)/新创建订单数
+                    self.time_new_order/ self.n_new_order,  # 订单延迟:(创建订单所用时间/并发数)/新创建订单数
                     self.n_payment_ok,
                     n_payment_diff,
                     self.n_payment,
                     self.time_payment / self.n_payment,  # 付款延迟:(付款所用时间/并发数)/付款订单数
+                    self.n_shipment_ok,
+                    n_shipment_diff,
+                    self.n_shipment,
+                    self.time_shipment / self.n_shipment,  # 发货延迟:(发货所用时间/并发数)/发货订单数
+                    self.n_receive_ok,
+                    n_receive_diff,
+                    self.n_receive,
+                    self.time_receive / self.n_receive,  # 收货延迟:(收货所用时间/并发数)/收货订单数
                 )
             )
         self.lock.release()
@@ -192,3 +244,7 @@ class Workload:
         self.n_payment_past = self.n_payment
         self.n_new_order_ok_past = self.n_new_order_ok
         self.n_payment_ok_past = self.n_payment_ok
+        self.n_shipment_past = self.n_shipment
+        self.n_receive_past = self.n_receive
+        self.n_shipment_ok_past = self.n_shipment_ok
+        self.n_receive_ok_past = self.n_receive_ok  

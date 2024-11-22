@@ -48,3 +48,45 @@ class Buyer:
         headers = {"token": self.token}
         r = requests.post(url, headers=headers, json=json)
         return r.status_code
+
+    # 增加新的内容接口
+    # 获取买家订单接口：买家用户id，返回响应消息、订单列表、状态码
+    def get_order_info(self, order_id):                        
+        json = {
+            "user_id": self.user_id,
+            "order_id": order_id,
+        }
+        url = urljoin(self.url_prefix, "get_buyer_orders")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        assert r.status_code == 200
+        result = r.json()
+        orders_info = result['orders']
+        order_info = {}
+        for i in orders_info:
+            if i['order_id'] == order_id:
+                order_info = i
+        assert len(order_info.keys()) != 0
+        return order_info
+
+    # 确认收货接口：买家用户id、订单id，返回响应消息、状态码
+    def receive_order(self, order_id):
+        json = {
+            "user_id": self.user_id,
+            "order_id": order_id,
+        }
+        url = urljoin(self.url_prefix, "receive_order")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code
+
+    # 取消订单接口：买家用户id、订单id，返回响应消息、状态码
+    def cancel_order(self, order_id):
+        json = {
+            "user_id": self.user_id,
+            "order_id": order_id,
+        }
+        url = urljoin(self.url_prefix, "cancel_order")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code
