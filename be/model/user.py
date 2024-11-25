@@ -1,10 +1,10 @@
 import jwt
 import time
 import logging
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from be.model import error
 from be.model import db_conn
-from be.model.db_model import User as UserModel
 from be.model.store import init_completed_event
 
 def jwt_encode(user_id: str, terminal: str) -> str:
@@ -45,14 +45,17 @@ class User(db_conn.DBConn):
             terminal = "terminal_{}".format(str(time.time()))
             token = jwt_encode(user_id, terminal)
             
-            new_user = UserModel(
-                user_id=user_id,
-                password=password,
-                balance=0,
-                token=token,
-                terminal=terminal
-            )
-            self.session.add(new_user)
+            insert_user_sql = text("""
+                INSERT INTO "user" (user_id, password, balance, token, terminal)
+                VALUES (:user_id, :password, 0, :token, :terminal)
+            """)
+            
+            self.session.execute(insert_user_sql, {
+                "user_id": user_id,
+                "password": password,
+                "token": token,
+                "terminal": terminal
+            })
             self.session.commit()
             
         except SQLAlchemyError:
@@ -62,9 +65,11 @@ class User(db_conn.DBConn):
 
     def check_token(self, user_id: str, token: str) -> (int, str):
         try:
-            user = self.session.query(UserModel).filter(
-                UserModel.user_id == user_id
-            ).first()
+            check_token_sql = text("""
+                SELECT token FROM "user" WHERE user_id = :user_id
+            """)
+            result = self.session.execute(check_token_sql, {"user_id": user_id})
+            user = result.fetchone()
 
             if user is None:
                 return error.error_authorization_fail()
@@ -78,9 +83,11 @@ class User(db_conn.DBConn):
 
     def check_password(self, user_id: str, password: str) -> (int, str):
         try:
-            user = self.session.query(UserModel).filter(
-                UserModel.user_id == user_id
-            ).first()
+            check_pwd_sql = text("""
+                SELECT password FROM "user" WHERE user_id = :user_id
+            """)
+            result = self.session.execute(check_pwd_sql, {"user_id": user_id})
+            user = result.fetchone()
             
             if user is None or user.password != password:
                 return error.error_authorization_fail()
@@ -97,16 +104,22 @@ class User(db_conn.DBConn):
 
             token = jwt_encode(user_id, terminal)
             
-            user = self.session.query(UserModel).filter(
-                UserModel.user_id == user_id
-            ).first()
+            update_token_sql = text("""
+                UPDATE "user" 
+                SET token = :token, terminal = :terminal
+                WHERE user_id = :user_id
+                RETURNING 1
+            """)
+            result = self.session.execute(update_token_sql, {
+                "token": token,
+                "terminal": terminal,
+                "user_id": user_id
+            })
             
-            if user:
-                user.token = token
-                user.terminal = terminal
-                self.session.commit()
-            else:
+            if not result.scalar():
                 return error.error_authorization_fail() + ("",)
+                
+            self.session.commit()
 
         except SQLAlchemyError as e:
             self.session.rollback()
@@ -124,16 +137,22 @@ class User(db_conn.DBConn):
             terminal = "terminal_{}".format(str(time.time()))
             dummy_token = jwt_encode(user_id, terminal)
             
-            user = self.session.query(UserModel).filter(
-                UserModel.user_id == user_id
-            ).first()
+            update_token_sql = text("""
+                UPDATE "user" 
+                SET token = :token, terminal = :terminal
+                WHERE user_id = :user_id
+                RETURNING 1
+            """)
+            result = self.session.execute(update_token_sql, {
+                "token": dummy_token,
+                "terminal": terminal,
+                "user_id": user_id
+            })
             
-            if user:
-                user.token = dummy_token
-                user.terminal = terminal
-                self.session.commit()
-            else:
+            if not result.scalar():
                 return error.error_authorization_fail()
+                
+            self.session.commit()
 
         except SQLAlchemyError as e:
             self.session.rollback()
@@ -148,11 +167,14 @@ class User(db_conn.DBConn):
             if code != 200:
                 return code, message
 
-            result = self.session.query(UserModel).filter(
-                UserModel.user_id == user_id
-            ).delete()
+            delete_user_sql = text("""
+                DELETE FROM "user"
+                WHERE user_id = :user_id
+                RETURNING 1
+            """)
+            result = self.session.execute(delete_user_sql, {"user_id": user_id})
             
-            if result == 0:
+            if not result.scalar():
                 return error.error_authorization_fail()
                 
             self.session.commit()
@@ -173,17 +195,23 @@ class User(db_conn.DBConn):
             terminal = "terminal_{}".format(str(time.time()))
             token = jwt_encode(user_id, terminal)
             
-            user = self.session.query(UserModel).filter(
-                UserModel.user_id == user_id
-            ).first()
+            update_pwd_sql = text("""
+                UPDATE "user"
+                SET password = :new_password, token = :token, terminal = :terminal
+                WHERE user_id = :user_id
+                RETURNING 1
+            """)
+            result = self.session.execute(update_pwd_sql, {
+                "new_password": new_password,
+                "token": token,
+                "terminal": terminal,
+                "user_id": user_id
+            })
             
-            if user:
-                user.password = new_password
-                user.token = token
-                user.terminal = terminal
-                self.session.commit()
-            else:
+            if not result.scalar():
                 return error.error_authorization_fail()
+                
+            self.session.commit()
 
         except SQLAlchemyError as e:
             self.session.rollback()

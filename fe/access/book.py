@@ -1,6 +1,4 @@
 import os
-import random
-import base64
 import simplejson as json
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

@@ -1,8 +1,7 @@
-from sqlalchemy import or_, and_
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from be.model import error
 from be.model import db_conn
-from be.model.db_model import Store as StoreModel, Book as BookModel
 from be.model.store import init_completed_event
 
 class Search(db_conn.DBConn):
@@ -12,39 +11,52 @@ class Search(db_conn.DBConn):
 
     def search_in_store(self, store_id, title, author, publisher, isbn, content, tags, book_intro, page=1, per_page=10):
         try:
-            if not self.store_id_exist(store_id):
+            # 检查商店是否存在
+            check_store_sql = text("""
+                SELECT 1 FROM user_store WHERE store_id = :store_id
+            """)
+            result = self.session.execute(check_store_sql, {"store_id": store_id})
+            if not result.scalar():
                 return error.error_non_exist_store_id(store_id)
             
-            # 获取商店中的所有书籍ID
-            book_ids = self.session.query(StoreModel.book_id).filter(
-                StoreModel.store_id == store_id
-            ).all()
-            book_ids = [bid[0] for bid in book_ids]
-
             # 构建查询条件
-            conditions = [BookModel.id.in_(book_ids)]
+            conditions = ["b.id IN (SELECT book_id FROM store WHERE store_id = :store_id)"]
+            params = {"store_id": store_id}
             
             if title:
-                conditions.append(BookModel.title.ilike(f'%{title}%'))
+                conditions.append("b.title ILIKE :title")
+                params["title"] = f"%{title}%"
             if author:
-                conditions.append(BookModel.author.ilike(f'%{author}%'))
+                conditions.append("b.author ILIKE :author")
+                params["author"] = f"%{author}%"
             if publisher:
-                conditions.append(BookModel.publisher.ilike(f'%{publisher}%'))
+                conditions.append("b.publisher ILIKE :publisher")
+                params["publisher"] = f"%{publisher}%"
             if isbn:
-                conditions.append(BookModel.isbn.ilike(f'%{isbn}%'))
+                conditions.append("b.isbn ILIKE :isbn")
+                params["isbn"] = f"%{isbn}%"
             if content:
-                conditions.append(BookModel.content.ilike(f'%{content}%'))
+                conditions.append("b.content ILIKE :content")
+                params["content"] = f"%{content}%"
             if tags:
-                conditions.append(BookModel.tags.ilike(f'%{tags}%'))
+                conditions.append("b.tags ILIKE :tags")
+                params["tags"] = f"%{tags}%"
             if book_intro:
-                conditions.append(BookModel.book_intro.ilike(f'%{book_intro}%'))
-
-            # 执行查询
-            query = self.session.query(BookModel).filter(and_(*conditions))
+                conditions.append("b.book_intro ILIKE :book_intro")
+                params["book_intro"] = f"%{book_intro}%"
             
-            # 分页
-            offset = (page - 1) * per_page
-            books = query.offset(offset).limit(per_page).all()
+            where_clause = " AND ".join(conditions)
+            params["offset"] = (page - 1) * per_page
+            params["limit"] = per_page
+
+            search_sql = text(f"""
+                SELECT b.* FROM book_info b
+                WHERE {where_clause}
+                OFFSET :offset LIMIT :limit
+            """)
+            
+            result = self.session.execute(search_sql, params)
+            books = result.fetchall()
 
             # 构建结果
             result = []
@@ -79,29 +91,43 @@ class Search(db_conn.DBConn):
         try:
             # 构建查询条件
             conditions = []
+            params = {
+                "offset": (page - 1) * per_page,
+                "limit": per_page
+            }
+            
             if title:
-                conditions.append(BookModel.title.ilike(f'%{title}%'))
+                conditions.append("title ILIKE :title")
+                params["title"] = f"%{title}%"
             if author:
-                conditions.append(BookModel.author.ilike(f'%{author}%'))
+                conditions.append("author ILIKE :author")
+                params["author"] = f"%{author}%"
             if publisher:
-                conditions.append(BookModel.publisher.ilike(f'%{publisher}%'))
+                conditions.append("publisher ILIKE :publisher")
+                params["publisher"] = f"%{publisher}%"
             if isbn:
-                conditions.append(BookModel.isbn.ilike(f'%{isbn}%'))
+                conditions.append("isbn ILIKE :isbn")
+                params["isbn"] = f"%{isbn}%"
             if content:
-                conditions.append(BookModel.content.ilike(f'%{content}%'))
+                conditions.append("content ILIKE :content")
+                params["content"] = f"%{content}%"
             if tags:
-                conditions.append(BookModel.tags.ilike(f'%{tags}%'))
+                conditions.append("tags ILIKE :tags")
+                params["tags"] = f"%{tags}%"
             if book_intro:
-                conditions.append(BookModel.book_intro.ilike(f'%{book_intro}%'))
+                conditions.append("book_intro ILIKE :book_intro")
+                params["book_intro"] = f"%{book_intro}%"
 
-            # 执行查询
-            query = self.session.query(BookModel)
-            if conditions:
-                query = query.filter(or_(*conditions))
-
-            # 分页
-            offset = (page - 1) * per_page
-            books = query.offset(offset).limit(per_page).all()
+            where_clause = " OR ".join(conditions) if conditions else "1=1"
+            
+            search_sql = text(f"""
+                SELECT * FROM book_info
+                WHERE {where_clause}
+                OFFSET :offset LIMIT :limit
+            """)
+            
+            result = self.session.execute(search_sql, params)
+            books = result.fetchall()
 
             # 构建结果
             result = []
