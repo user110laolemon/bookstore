@@ -1,7 +1,7 @@
 import os
+import psycopg2
 import simplejson as json
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from psycopg2.extras import DictCursor
 
 class Book:
     id: str
@@ -35,45 +35,64 @@ class BookDB:
         else:
             self.book_db = self.db_s
 
-        # 连接PostgreSQL
-        self.engine = create_engine(
-            'postgresql://postgres:0524@localhost:5432/bookstore'
+        # PostgreSQL连接
+        self.conn = psycopg2.connect(
+            database="bookstore",
+            user="postgres",
+            password="0524",
+            host="localhost",
+            port="5432"
         )
-        Session = sessionmaker(bind=self.engine)
-        self.session = Session()
 
     def get_book_count(self):
-        result = self.session.execute('SELECT COUNT(*) FROM book_info')
-        return result.scalar()
+        cur = self.conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM book")
+        count = cur.fetchone()[0]
+        cur.close()
+        return count
     
     def get_book_info(self, start, size):
         books = []
-        rows = self.session.execute(
-            'SELECT * FROM book_info ORDER BY id OFFSET :start LIMIT :size',
-            {'start': start, 'size': size}
-        ).fetchall()
-
+        cur = self.conn.cursor(cursor_factory=DictCursor)
+        
+        cur.execute(
+            """
+            SELECT *
+            FROM book
+            ORDER BY id
+            OFFSET %s
+            LIMIT %s
+            """,
+            (start, size)
+        )
+        
+        rows = cur.fetchall()
+        
         for row in rows:
             book = Book()
-            book.id = row.id
-            book.title = row.title
-            book.author = row.author
-            book.publisher = row.publisher
-            book.original_title = row.original_title
-            book.translator = row.translator
-            book.pub_year = row.pub_year
-            book.pages = row.pages
-            book.price = row.price
-            book.binding = row.binding
-            book.isbn = row.isbn
-            book.author_intro = row.author_intro
-            book.book_intro = row.book_intro
-            book.content = row.content
-            book.tags = row.tags
-            book.pictures = []
-            if row.picture:
-                book.pictures.append(row.picture)
+            book.id = row.get("id")
+            book.title = row.get("title")
+            book.author = row.get("author")
+            book.publisher = row.get("publisher")
+            book.original_title = row.get("original_title")
+            book.translator = row.get("translator")
+            book.pub_year = row.get("pub_year")
+            book.pages = row.get("pages")
+            book.price = row.get("price")
+            book.currency_unit = row.get("currency_unit")
+            book.binding = row.get("binding")
+            book.isbn = row.get("isbn")
+            book.author_intro = row.get("author_intro")
+            book.book_intro = row.get("book_intro")
+            book.content = row.get("content")
+            book.tags = row.get("tags")
+            pictures = str(row.get("picture"))
 
             books.append(book)
 
+        cur.close()
         return books
+
+    def __del__(self):
+        if hasattr(self, 'conn'):
+            self.conn.close()

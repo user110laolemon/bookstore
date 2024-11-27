@@ -8,18 +8,17 @@ bp_buyer = Blueprint("buyer", __name__, url_prefix="/buyer")
 
 @bp_buyer.route("/new_order", methods=["POST"])
 def new_order():
-    user_id: str = request.json.get("user_id")
-    store_id: str = request.json.get("store_id")
-    books: [] = request.json.get("books")
-    id_and_count = []
-    for book in books:
-        book_id = book.get("id")
-        count = book.get("count")
-        id_and_count.append((book_id, count))
-
+    user_id = request.json.get("user_id")
+    store_id = request.json.get("store_id")
+    books = request.json.get("books")
+    
+    # 参数验证
+    if not user_id or not store_id or not books:
+        return jsonify({"code": 401, "message": "Invalid parameters", "order_id": ""})
+    
     b = Buyer()
-    code, message, order_id = b.new_order(user_id, store_id, id_and_count)
-    return jsonify({"message": message, "order_id": order_id}), code
+    code, message, order_id = b.new_order(user_id, store_id, books)
+    return jsonify({"code": code, "message": message, "order_id": order_id})
 
 
 @bp_buyer.route("/payment", methods=["POST"])
@@ -56,10 +55,15 @@ def receive_order():
 # 获取买家订单接口：买家用户id，返回响应消息、订单列表、状态码
 @bp_buyer.route("/get_buyer_orders", methods=["POST"])
 def get_buyer_orders():
-    user_id: str = request.json.get("user_id")
+    user_id = request.json.get("user_id")
+    order_id = request.json.get("order_id")
+    
+    if not user_id:
+        return jsonify({"code": 401, "message": "Invalid user id", "orders": []})
+        
     b = Buyer()
-    code, message, orders = b.get_buyer_orders(user_id)
-    return jsonify({"message": message, "orders": orders}), code
+    code, message, orders = b.get_buyer_orders(user_id, order_id)
+    return jsonify({"code": code, "message": message, "orders": orders})
 
 # 取消订单接口：买家用户id、订单id，返回响应消息、状态码
 @bp_buyer.route("/cancel_order", methods=["POST"])

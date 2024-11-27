@@ -17,15 +17,19 @@ class Buyer:
 
     def new_order(self, store_id: str, book_id_and_count: [(str, int)]) -> (int, str):
         books = []
-        for id_count_pair in book_id_and_count:
-            books.append({"id": id_count_pair[0], "count": id_count_pair[1]})
-        json = {"user_id": self.user_id, "store_id": store_id, "books": books}
-        # print(simplejson.dumps(json))
+        for book_id, count in book_id_and_count:
+            books.append({"id": book_id, "count": count})
+        
+        json = {
+            "user_id": self.user_id,
+            "store_id": store_id,
+            "books": books
+        }
         url = urljoin(self.url_prefix, "new_order")
         headers = {"token": self.token}
         r = requests.post(url, headers=headers, json=json)
         response_json = r.json()
-        return r.status_code, response_json.get("order_id")
+        return response_json.get("code"), response_json.get("order_id", "")
 
     def payment(self, order_id: str):
         json = {

@@ -1,97 +1,85 @@
-import uuid
-from datetime import datetime
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from be.model import db_conn, error
-from be.model.store import init_completed_event
+from be.model import store
 
-class Buyer(db_conn.DBConn):
+class DBConn:
+    """
+    数据库连接类，处理与PostgreSQL的连接和基本查询操作
+    """
     def __init__(self):
-        init_completed_event.wait()
-        db_conn.DBConn.__init__(self)
-    
-    def new_order(self, user_id: str, store_id: str, id_and_count: [(str, int)]) -> (int, str, str):
-        order_id = ""
+        self.conn = store.get_db_conn()
+
+    def user_id_exist(self, user_id):
+        """
+        检查用户是否存在
+        :param user_id: 用户ID
+        :return: 如果用户存在返回True，否则返回False
+        """
         try:
-            # 检查用户是否存在
-            check_user_sql = text("""
-                SELECT 1 FROM "user" WHERE user_id = :user_id
-            """)
-            result = self.session.execute(check_user_sql, {"user_id": user_id})
-            if not result.scalar():
-                return error.error_non_exist_user_id(user_id) + (order_id,)
-            
-            # 检查商店是否存在
-            check_store_sql = text("""
-                SELECT 1 FROM user_store WHERE store_id = :store_id
-            """)
-            result = self.session.execute(check_store_sql, {"store_id": store_id})
-            if not result.scalar():
-                return error.error_non_exist_store_id(store_id) + (order_id,)
-            
-            uid = "{}_{}_{}".format(user_id, store_id, str(uuid.uuid1()))
-            
-            # 创建订单
-            create_order_sql = text("""
-                INSERT INTO "order" (order_id, store_id, user_id, status, order_time)
-                VALUES (:order_id, :store_id, :user_id, :status, :order_time)
-            """)
-            self.session.execute(create_order_sql, {
-                "order_id": uid,
-                "store_id": store_id,
-                "user_id": user_id,
-                "status": "unpaid",
-                "order_time": datetime.now()
-            })
-            
-            for book_id, count in id_and_count:
-                # 检查并更新库存
-                check_stock_sql = text("""
-                    SELECT stock_level, price 
-                    FROM store 
-                    WHERE store_id = :store_id AND book_id = :book_id
-                    FOR UPDATE
-                """)
-                result = self.session.execute(check_stock_sql, {
-                    "store_id": store_id,
-                    "book_id": book_id
-                })
-                store = result.fetchone()
-                
-                if store is None:
-                    return error.error_non_exist_book_id(book_id) + (order_id,)
-                if store.stock_level < count:
-                    return error.error_stock_level_low(book_id) + (order_id,)
-                
-                # 更新库存
-                update_stock_sql = text("""
-                    UPDATE store 
-                    SET stock_level = stock_level - :count
-                    WHERE store_id = :store_id AND book_id = :book_id
-                """)
-                self.session.execute(update_stock_sql, {
-                    "count": count,
-                    "store_id": store_id,
-                    "book_id": book_id
-                })
-                
-                # 创建订单详情
-                create_detail_sql = text("""
-                    INSERT INTO order_detail (order_id, book_id, count, price)
-                    VALUES (:order_id, :book_id, :count, :price)
-                """)
-                self.session.execute(create_detail_sql, {
-                    "order_id": uid,
-                    "book_id": book_id,
-                    "count": count,
-                    "price": store.price
-                })
-            
-            self.session.commit()
-            order_id = uid
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            return error.error_database_operation() + (order_id,)
-        except BaseException as e:
-            return error.error_and_message(530, str(e)) + (order_id,)
-        return 200, "ok", order_id
+            cur = self.conn.cursor()
+            cur.execute(
+                "SELECT 1 FROM \"user\" WHERE user_id = %s",
+                (user_id,)
+            )
+            result = cur.fetchone()
+            return result is not None
+        finally:
+            cur.close()
+
+    def book_id_exist(self, store_id, book_id):
+        """
+        检查特定商店中的图书是否存在
+        :param store_id: 商店ID
+        :param book_id: 图书ID
+        :return: 如果图书存在返回True，否则返回False
+        """
+        try:
+            cur = self.conn.cursor()
+            cur.execute(
+                "SELECT 1 FROM store WHERE store_id = %s AND book_id = %s",
+                (store_id, book_id)
+            )
+            result = cur.fetchone()
+            return result is not None
+        finally:
+            cur.close()
+
+    def store_id_exist(self, store_id):
+        """
+        检查商店是否存在
+        :param store_id: 商店ID
+        :return: 如果商店存在返回True，否则返回False
+        """
+        try:
+            cur = self.conn.cursor()
+            cur.execute(
+                "SELECT 1 FROM user_store WHERE store_id = %s",
+                (store_id,)
+            )
+            result = cur.fetchone()
+            return result is not None
+        finally:
+            cur.close()
+    
+    def order_id_exist(self, user_id, order_id):
+        """
+        检查用户的订单是否存在
+        :param user_id: 用户ID
+        :param order_id: 订单ID
+        :return: 如果订单存在返回True，否则返回False
+        """
+        try:
+            cur = self.conn.cursor()
+            cur.execute(
+                "SELECT 1 FROM new_order WHERE user_id = %s AND order_id = %s",
+                (user_id, order_id)
+            )
+            result = cur.fetchone()
+            return result is not None
+        finally:
+            cur.close()
+
+    def __del__(self):
+        """
+        析构函数，确保数据库连接被正确关闭
+        """
+        if hasattr(self, 'conn'):
+            self.conn.close()

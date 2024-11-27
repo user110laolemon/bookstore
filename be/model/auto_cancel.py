@@ -1,45 +1,71 @@
-import logging
-from datetime import datetime, timedelta
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from be.model import error, db_conn
-from be.model.db_model import Order as OrderModel
-from be.model.store import init_completed_event
+import psycopg2
+import threading
+import time
+from be.model import db_conn
 
 class OrderAutoCancel(db_conn.DBConn):
     def __init__(self):
-        init_completed_event.wait()
         db_conn.DBConn.__init__(self)
+        self.thread = threading.Thread(target=self.run)
+        self.thread.setDaemon(True)
+        self.thread.start()
 
-    def cancel_unpaid_orders(self):
-        """自动取消超时未支付的订单"""
+    def run(self):
+        while True:
+            try:
+                self.cancel_expired_order()
+            except Exception as e:
+                print(f"Error canceling unpaid orders: {str(e)}")
+            time.sleep(5)  # 每5秒检查一次
+
+    def cancel_expired_order(self):
         try:
-            current_time = datetime.now()
-            earliest_time = current_time - timedelta(minutes=1)
-           
-            # 使用原生SQL更新超时未支付的订单
-            update_sql = text("""
-                UPDATE "order"
-                SET status = 'cancelled'
-                WHERE status = 'unpaid'
-                AND order_time < :earliest_time
-                RETURNING id
-            """)
-       
-            result = self.session.execute(
-                update_sql,
-                {"earliest_time": earliest_time}
+            cur = self.conn.cursor()
+            
+            # 使用参数化查询，并确保使用正确的字符串值
+            cur.execute(
+                """
+                UPDATE new_order 
+                SET status = %s
+                WHERE status = %s 
+                AND created_at < NOW() - INTERVAL '30 minutes'
+                RETURNING order_id, store_id
+                """,
+                ('cancelled', 'unpaid')  # 使用参数化查询
             )
-       
-            affected_rows = result.rowcount
-            self.session.commit()
-            logging.info(f"Successfully cancelled {affected_rows} unpaid orders")
-
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            logging.error(f"Database error while canceling unpaid orders: {str(e)}")
+            
+            expired_orders = cur.fetchall()
+            
+            for order_id, store_id in expired_orders:
+                # 恢复库存
+                cur.execute(
+                    """
+                    SELECT book_id, count 
+                    FROM new_order_detail 
+                    WHERE order_id = %s
+                    """,
+                    (order_id,)
+                )
+                
+                order_details = cur.fetchall()
+                for book_id, count in order_details:
+                    cur.execute(
+                        """
+                        UPDATE store 
+                        SET stock_level = stock_level + %s 
+                        WHERE store_id = %s AND book_id = %s
+                        """,
+                        (count, store_id, book_id)
+                    )
+            
+            self.conn.commit()
+            
         except Exception as e:
-            logging.error(f"Error canceling unpaid orders: {str(e)}")
+            self.conn.rollback()
+            print(f"Error in cancel_expired_order: {str(e)}")
+        finally:
+            if cur:
+                cur.close()
 
 
 if __name__ == "__main__":
