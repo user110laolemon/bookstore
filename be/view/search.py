@@ -8,7 +8,6 @@ bp_book = Blueprint("search", __name__, url_prefix="/search")
 
 @bp_book.route("/search_in_store", methods=["POST"])
 def search_in_store():
-
     store_id = request.json.get("store_id", "")
     title = request.json.get("title", "")
     author = request.json.get("author", "")
@@ -17,14 +16,15 @@ def search_in_store():
     content = request.json.get("content", "")
     tags = request.json.get("tags", "")
     book_intro = request.json.get("book_intro", "")
-    page= int(request.json.get("page", ""))
+    page = int(request.json.get("page", ""))
     per_page = int(request.json.get("per_page", ""))
 
-    u = search.Search()
+    u = search.Book()
     code, data = u.search_in_store(
-        store_id,title,author,publisher,isbn,content,tags,book_intro,page,per_page
+        store_id, title, author, publisher, isbn, content, tags, book_intro,page,per_page
     )
     return jsonify({"data": data}), code
+
 
 @bp_book.route("/search_all", methods=["POST"])
 def search_all():
@@ -35,11 +35,11 @@ def search_all():
     content = request.json.get("content", "")
     tags = request.json.get("tags", "")
     book_intro = request.json.get("book_intro", "")
-    page= int(request.json.get("page", ""))
+    page = int(request.json.get("page", ""))
     per_page = int(request.json.get("per_page", ""))
 
-    u = search.Search()
+    u = search.Book()
     code, data = u.search_all(
-        title,author,publisher,isbn,content,tags,book_intro,page,per_page
+        title, author, publisher, isbn, content, tags, book_intro,page,per_page
     )
     return jsonify({"data": data}), code
