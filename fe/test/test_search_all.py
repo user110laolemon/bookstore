@@ -1,8 +1,8 @@
 import pytest
 
-from fe.access import search
-from fe.access import book
+from fe.access import book,search
 import random
+
 
 class TestSearchBooksAll:
     @pytest.fixture(autouse=True)
@@ -21,11 +21,10 @@ class TestSearchBooksAll:
         }
         selected_book = random.choice(self.books)
         for i in ['title', 'author', 'publisher', 'isbn', 'content', 'tags', 'book_intro']:
-            if getattr(selected_book, i) is not None:
-                text_length = len(getattr(selected_book, i))
-                if random.random() > 0.8 and text_length >= str_len:
-                    start_index = random.randint(0, text_length - 2)
-                    self.json[i] = getattr(selected_book, i)[start_index:start_index + 2]
+            text_length = len(getattr(selected_book, i))
+            if random.random() > 0.8 and text_length >= str_len:
+                start_index = random.randint(0, text_length - 2)
+                self.json[i] = getattr(selected_book, i)[start_index:start_index + 2]
         yield
 
     def test_ok(self):
@@ -39,29 +38,24 @@ class TestSearchBooksAll:
                 return [book.id for book in self.books]
 
             res = []
-            for d in self.books:
+            for book in self.books:
                 flag = 0
-                for key, substring in processed_json.items():
-                    if getattr(d, key) is not None:
-                        if getattr(d, key).find(substring) == -1:
-                            flag=1
-                    else:
+                for key, value in processed_json.items():
+                    if getattr(book, key) is not None and value not in getattr(book, key):
                         flag=1
                 if flag==0:
-                    res.append(d.id)
+                    res.append(book.id)
 
             return res
 
         json_list = list(self.json.values())
 
         code, res = search.search_all(json_list[0], json_list[1], json_list[2], json_list[3], json_list[4],
-                                         json_list[5], json_list[6],1,10000000)
+                                         json_list[5], json_list[6],1,100000000)
         assert code == 200
-
         res = [i['id'] for i in res['data']]
         right_answer = check_ok()
         assert len(right_answer) == len(res)
-
-        for i in res:
-            if i not in right_answer:
-                assert False  
+        for i in right_answer:
+            if i not in res:
+                assert False

@@ -5,7 +5,6 @@ from fe.access.new_buyer import register_new_buyer
 import uuid
 from fe.access import auth
 from fe import conf
-
 import random
 
 provinces = ['北京', '天津', '河北', '山西', '内蒙古', '辽宁', '吉林', '黑龙江', '上海', '江苏',
@@ -24,47 +23,27 @@ class TestNewOrder:
         self.password = self.seller_id
         self.buyer = register_new_buyer(self.buyer_id, self.password)
         self.gen_book = GenBook(self.seller_id, self.store_id)
-        self.address = random.choice(provinces)              
-        self.auth.set_address(self.buyer_id, self.address)           
         yield
 
-    def test_non_exist_book_id(self):
-        ok, buy_book_id_list = self.gen_book.gen(
-            non_exist_book_id=True, low_stock_level=False
-        )
-        assert ok
-        code, _ = self.buyer.new_order(self.store_id, buy_book_id_list)
-        assert code != 200
-
-    def test_low_stock_level(self):
-        ok, buy_book_id_list = self.gen_book.gen(
-            non_exist_book_id=False, low_stock_level=True
-        )
-        assert ok
-        code, _ = self.buyer.new_order(self.store_id, buy_book_id_list)
-        assert code != 200
-
-    def test_ok(self):
+        
+    def test_non_exist_address(self):       
         ok, buy_book_id_list = self.gen_book.gen(
             non_exist_book_id=False, low_stock_level=False
         )
         assert ok
+        code, _ = self.buyer.new_order(self.store_id, buy_book_id_list)
+        assert code != 200
+        
+    def test_save_address(self):                    
+        ok, buy_book_id_list = self.gen_book.gen(
+            non_exist_book_id=False, low_stock_level=False
+        )
+        assert ok
+        code, _ = self.buyer.new_order(self.store_id, buy_book_id_list)
+        assert code != 200
+        
+        self.address = random.choice(provinces)           
+        self.auth.set_address(self.buyer_id, self.address)
+        
         code, _ = self.buyer.new_order(self.store_id, buy_book_id_list)
         assert code == 200
-
-    def test_non_exist_user_id(self):
-        ok, buy_book_id_list = self.gen_book.gen(
-            non_exist_book_id=False, low_stock_level=False
-        )
-        assert ok
-        self.buyer.user_id = self.buyer.user_id + "_x"
-        code, _ = self.buyer.new_order(self.store_id, buy_book_id_list)
-        assert code != 200
-
-    def test_non_exist_store_id(self):
-        ok, buy_book_id_list = self.gen_book.gen(
-            non_exist_book_id=False, low_stock_level=False
-        )
-        assert ok
-        code, _ = self.buyer.new_order(self.store_id + "_x", buy_book_id_list)
-        assert code != 200
