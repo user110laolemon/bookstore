@@ -1,5 +1,4 @@
 import requests
-import simplejson
 from urllib.parse import urljoin
 from fe.access.auth import Auth
 
@@ -17,19 +16,45 @@ class Buyer:
 
     def new_order(self, store_id: str, book_id_and_count: [(str, int)]) -> (int, str):
         books = []
-        for book_id, count in book_id_and_count:
-            books.append({"id": book_id, "count": count})
-        
-        json = {
-            "user_id": self.user_id,
-            "store_id": store_id,
-            "books": books
-        }
+        for id_count_pair in book_id_and_count:
+            books.append({"id": id_count_pair[0], "count": id_count_pair[1]})
+        json = {"user_id": self.user_id, "store_id": store_id, "books": books}
         url = urljoin(self.url_prefix, "new_order")
         headers = {"token": self.token}
         r = requests.post(url, headers=headers, json=json)
         response_json = r.json()
-        return response_json.get("code"), response_json.get("order_id", "")
+        return r.status_code, response_json.get("order_id")
+    
+    def discount(self, order_id: str):
+        json = {
+            "user_id": self.user_id,
+            "order_id": order_id,
+        }
+        url = urljoin(self.url_prefix, "discount")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code, r.json()
+    
+    def postage(self, order_id: str):           
+        json = {
+            "user_id": self.user_id,
+            "order_id": order_id,
+        }
+        url = urljoin(self.url_prefix, "postage")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code, r.json()
+    
+    def recommend(self, store_id: str, order_id: str):          
+        json = {
+            "store_id": store_id,
+            "order_id": order_id,
+        }
+        url = urljoin(self.url_prefix, "recommend")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code, r.json()
+    
 
     def payment(self, order_id: str):
         json = {
@@ -53,8 +78,6 @@ class Buyer:
         r = requests.post(url, headers=headers, json=json)
         return r.status_code
 
-    # 增加新的内容接口
-    # 获取买家订单接口：买家用户id，返回响应消息、订单列表、状态码
     def get_order_info(self, order_id):                        
         json = {
             "user_id": self.user_id,
@@ -73,7 +96,6 @@ class Buyer:
         assert len(order_info.keys()) != 0
         return order_info
 
-    # 确认收货接口：买家用户id、订单id，返回响应消息、状态码
     def receive_order(self, order_id):
         json = {
             "user_id": self.user_id,
@@ -84,13 +106,22 @@ class Buyer:
         r = requests.post(url, headers=headers, json=json)
         return r.status_code
 
-    # 取消订单接口：买家用户id、订单id，返回响应消息、状态码
     def cancel_order(self, order_id):
         json = {
             "user_id": self.user_id,
             "order_id": order_id,
         }
         url = urljoin(self.url_prefix, "cancel_order")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code
+
+    def return_purchase(self, order_id):
+        json = {
+            "user_id": self.user_id,
+            "order_id": order_id,
+        }
+        url = urljoin(self.url_prefix, "return_purchase")
         headers = {"token": self.token}
         r = requests.post(url, headers=headers, json=json)
         return r.status_code

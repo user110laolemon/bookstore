@@ -87,7 +87,7 @@ class Buyer(db_conn.DBConn):
 
         return 200, "ok", order_id
         
-#打折接口
+    # 新增打折
     def discount(self, user_id: str, order_id: str):
         try:
             order_data = self.conn.query(NewOrder).filter_by(order_id=order_id).first()
@@ -119,7 +119,7 @@ class Buyer(db_conn.DBConn):
         except Exception as e:
             return 530, "{}".format(str(e))
         
-#邮费接口
+    # 新增邮费
     def postage(self, user_id: str, order_id: str):           
         try:
             order_data = self.conn.query(NewOrder).filter_by(order_id=order_id).first()
@@ -146,7 +146,7 @@ class Buyer(db_conn.DBConn):
             return 530, "{}".format(str(e))
             
             
-#推荐接口
+    # 新增推荐
     def recommend(self, store_id: str, order_id: str):     
         try:
             if not self.store_id_exist(store_id):

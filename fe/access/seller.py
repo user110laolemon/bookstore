@@ -4,7 +4,6 @@ from fe.access import book
 from fe.access.auth import Auth
 from fe import conf
 
-
 class Seller:
     def __init__(self, url_prefix, seller_id: str, password: str):
         self.url_prefix = urljoin(url_prefix, "seller/")
@@ -32,8 +31,10 @@ class Seller:
             "book_info": book_info.__dict__,
             "stock_level": stock_level,
         }
+        
         url = urljoin(self.url_prefix, "add_book")
         headers = {"token": self.token}
+        
         r = requests.post(url, headers=headers, json=json)
         return r.status_code
 
@@ -50,6 +51,7 @@ class Seller:
         headers = {"token": self.token}
         r = requests.post(url, headers=headers, json=json)
         return r.status_code
+
 
 def ship_order(store_id, order_id):
     json = {

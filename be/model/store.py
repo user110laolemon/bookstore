@@ -80,7 +80,7 @@ class NewOrderDetail(Base):
 class BookStore:
 
     def __init__(self):
-        self.engine = create_engine('postgresql://postgres:postgreSQL^102938@localhost:5432/bookstore')
+        self.engine = create_engine('postgresql://postgres:0524@localhost:5432/bookstore')
         self.DbSession = sessionmaker(bind=self.engine)
         self.session = self.DbSession()
         self.init_tables()
