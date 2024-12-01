@@ -9,15 +9,15 @@ error_code = {
     517: "stock level low, book id {}",
     518: "invalid order id {}",
     519: "not sufficient funds, order id {}",
-    520: "order status error, order id {}",  # 添加订单状态错误信息
-    521: "non exist order id {}",  # 添加订单不存在错误信息
-    522: "database error",  # 数据库错误
-    523: "invalid parameter",  # 无效参数
-    524: "purchase order failed",  # 购买订单失败
-    525: "seller authorization fail",  # 卖家授权失败
-    526: "buyer authorization fail",  # 买家授权失败
-    527: "invalid store authorization",  # 无效的商店授权
-    528: "database operation error",  # 数据库操作错误
+    520: "",
+    521: "",
+    522: "",
+    523: "",
+    524: "",
+    525: "",
+    526: "",
+    527: "",
+    528: "",
 }
 
 
@@ -61,36 +61,11 @@ def error_status_fail(order_id):
     return 520, error_code[520].format(order_id)
 
 
-def error_non_exist_order_id(order_id):
+def error_non_exist_order_id(order_id):               
     return 521, error_code[521].format(order_id)
 
-
-def error_database():
-    return 522, error_code[522]
-
-
-def error_invalid_parameter():
-    return 523, error_code[523]
-
-
-def error_purchase_fail():
-    return 524, error_code[524]
-
-
-def error_seller_auth_fail():
-    return 525, error_code[525]
-
-
-def error_buyer_auth_fail():
-    return 526, error_code[526]
-
-
-def error_store_auth_fail():
-    return 527, error_code[527]
-
-
-def error_database_operation():
-    return 528, error_code[528]
+def error_non_exist_address(user_id):            
+    return 522, error_code[522].format(user_id)
 
 
 def error_authorization_fail():
