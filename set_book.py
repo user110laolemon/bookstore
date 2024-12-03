@@ -27,12 +27,12 @@ def migrate_books():
         pg_cursor = pg_conn.cursor()
 
         # 删除已存在的表
-        pg_cursor.execute("DROP TABLE IF EXISTS book")
+        pg_cursor.execute("DROP TABLE IF EXISTS book1")
 
         # 创建book表
         pg_cursor.execute("""
-            CREATE TABLE IF NOT EXISTS book (
-                id TEXT PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS book1 (
+                _id TEXT PRIMARY KEY,
                 title TEXT,
                 author TEXT,
                 publisher TEXT,
@@ -46,7 +46,7 @@ def migrate_books():
                 isbn TEXT,
                 author_intro TEXT,
                 book_intro TEXT,
-                content TEXT,
+                contents TEXT,
                 tags TEXT,
                 picture BYTEA
             )
@@ -62,10 +62,10 @@ def migrate_books():
         for i, record in enumerate(book_records):
             try:
                 pg_cursor.execute("""
-                    INSERT INTO book (
-                        id, title, author, publisher, original_title, translator, 
+                    INSERT INTO book1 (
+                        _id, title, author, publisher, original_title, translator, 
                         pub_year, pages, price, currency_unit, binding, isbn, 
-                        author_intro, book_intro, content, tags, picture
+                        author_intro, book_intro, contents, tags, picture
                     )
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, record)
@@ -83,7 +83,7 @@ def migrate_books():
         print("数据迁移完成")
 
         # 验证数据
-        pg_cursor.execute("SELECT COUNT(*) FROM book")
+        pg_cursor.execute("SELECT COUNT(*) FROM book1")
         pg_count = pg_cursor.fetchone()[0]
         print(f"PostgreSQL中的记录数: {pg_count}")
 

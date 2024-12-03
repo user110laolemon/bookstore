@@ -2,11 +2,15 @@ import time
 
 import pytest
 
+from fe.access.new_seller import register_new_seller
+from fe.access import book
+from fe.access.seller import ship_order
 from fe.access.buyer import Buyer
 from fe.test.gen_book_data import GenBook
 from fe.access.new_buyer import register_new_buyer
 import uuid
 from fe.access.book import Book
+from fe.access.auth import Auth
 from fe.access import auth
 from fe import conf
 

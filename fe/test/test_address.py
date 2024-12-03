@@ -3,6 +3,7 @@ import pytest
 from fe.test.gen_book_data import GenBook
 from fe.access.new_buyer import register_new_buyer
 import uuid
+from fe.access.auth import Auth
 from fe.access import auth
 from fe import conf
 import random

@@ -2,12 +2,15 @@ import time
 
 import pytest
 
+from fe.access.new_seller import register_new_seller
+from fe.access import book
 from fe.access.seller import ship_order
 from fe.access.buyer import Buyer
 from fe.test.gen_book_data import GenBook
 from fe.access.new_buyer import register_new_buyer
 import uuid
 from fe.access.book import Book
+from fe.access.auth import Auth
 from fe.access import auth
 from fe import conf
 
@@ -132,7 +135,7 @@ class TestOrderStatus:
         code = self.buyer.receive_order(self.order_id) 
         assert code != 200
         
-        
+    #退货
     def test_return_ok(self):
         code = self.buyer.add_funds(self.total_price)     
         assert code == 200
@@ -157,7 +160,7 @@ class TestOrderStatus:
         order_info=self.buyer.get_order_info(self.order_id)
         assert order_info['status'] == 'returned'
 
-
+    # 逾期退货
     def test_return_overdue(self):
         code = self.buyer.add_funds(self.total_price)     
         assert code == 200
@@ -203,7 +206,7 @@ class TestOrderStatus:
         code = self.buyer.receive_order(self.order_id)  
         assert code != 200
         
-        
+    #未收货就退货
     def test_return_before_received(self):
         code = self.buyer.add_funds(self.total_price)     
         assert code == 200
