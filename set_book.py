@@ -27,7 +27,9 @@ def migrate_books():
         pg_cursor = pg_conn.cursor()
 
         # 删除已存在的表
-        pg_cursor.execute("DROP TABLE IF EXISTS book1")
+        pg_cursor.execute("DROP TABLE IF EXISTS book1, book")
+        pg_cursor.execute('DROP TABLE IF EXISTS new_order_detail, new_order, store, user_store, "user";')
+
 
         # 创建book表
         pg_cursor.execute("""
